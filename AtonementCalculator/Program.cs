@@ -171,13 +171,16 @@ namespace AtonementCalculator
                         atonementResult = 0;
                         for (int k = 0; k < iterations; k++)
                         {
+                            // Create actor
                             Reldarus = new Priest(intellect + i, health, crit, haste, mastery, vers, trinket, seed[k]);
+                            // Calculate optimal atomenets
                             tempAtonements = OptimalAtonementCount(intellect + i, health, crit, haste, mastery, vers,
                                 trinket, seed[k], bubbleAtonements);
                             // Save the difference between the run and the baseline
                             tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
                             atonementResult += Reldarus.Atonements.Count();
                         }
+                        // Store result in array
                         result = (float)Math.Round((tempOutput / iterations));
                         intArray[count] = result;
                         intArrayAtonements[count] = (float)Math.Round(atonementResult / iterations);
