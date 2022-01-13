@@ -7,8 +7,7 @@ At the time, the spirit shell build was most popular, and after trying it for a 
 The math, however, was too complicated to solve by hand. That is where this simulator comes in.
 
 This simulator takes in the stats of your character in the main program file and outputs a .csv file that looks like:
-
---
+```
 Output,Int,Stam,Crit,Haste,Mastery,Vers
 -250,-41658,-75002,-11642,-18445,-10209,-15172
 -200,-31535,-55547,-9717,-11856,-8418,-11904
@@ -37,17 +36,17 @@ Atonements,Int,Stam,Crit,Haste,Mastery,Vers
 
 Weights,129.9,168.1,45.8,95.9,39,54.3,
 Normalized,1,1.29,0.35,0.74,0.3,0.42,
---
 
+```
 The top sections is how your healing output changes as your stats change
 The middle section is the optimal number of atonements to apply as stats change (in this case, the baseline is 19 targets)
-The last section are stat weights, which might look familiar to anyone who has used Simulationcraft
+The last section is stat weights, which might look familiar to anyone who has used Simulationcraft
+This formatting and pre-calculation allows for easy importing to Excel.
 
 Additional functionality includes an inidividual sim run, gear comparisons, and an atonement target count analyzer
 
 An indiivdual sim run, which shows spell casts and a simplified current timer, might look like:
-
---
+```
 0s: PTW
 1.3s: Bubble
 2.6s: Bubble
@@ -136,5 +135,5 @@ Total healing from cast: 1333.839, per atonement 667
 Atonement Count: 19
 Total Healing: 374231.2
 Average Healing: 19696.4 (92.2 %)
---
+```
 The results are shown at the bottom: How much healing each target recieved, how much it was relative to the cap, and final statistics
