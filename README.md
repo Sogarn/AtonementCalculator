@@ -1,12 +1,14 @@
 # AtonementCalculator
-A World of Warcraft 9.0 Venthyr Discipline Priest simulator to calculate atonements and stat weights for Spirit Shell build
+A World of Warcraft 9.0 Venthyr Discipline Priest simulator to calculate atonements and stat weights for Spirit Shell build<br />
 This readme assumes knowledge of the game and class.
+<br /><br />
+This simulation was designed to provide a resource for myself to improve my healing gameplay as a Discipline Priest in a raid environment in World of Warcraft.<br />
+At the time, the spirit shell build was most popular, and after trying it for a while I realized that it was mostly deterministic.<br />
+The math, however, was too complicated to solve by hand. That is where this simulator comes in.<br />
+<br />
+Functionality includes stat weight data (the core functionality), inidividual sim runs, gear comparisons, and an atonement target count analyzer 
 
-This simulation was designed to provide a resource for myself to improve my healing gameplay as a Discipline Priest in a raid environment in World of Warcraft.
-At the time, the spirit shell build was most popular, and after trying it for a while I realized that it was mostly deterministic.
-The math, however, was too complicated to solve by hand. That is where this simulator comes in.
-
-This simulator takes in the stats of your character in the main program file and outputs a .csv file that looks like:
+The main function takes in the stats of your character in the main program file and creates a .csv file that looks like:
 ```
 Output,Int,Stam,Crit,Haste,Mastery,Vers
 -250,-41658,-75002,-11642,-18445,-10209,-15172
@@ -38,14 +40,11 @@ Weights,129.9,168.1,45.8,95.9,39,54.3,
 Normalized,1,1.29,0.35,0.74,0.3,0.42,
 
 ```
-The top sections is how your healing output changes as your stats change
-The middle section is the optimal number of atonements to apply as stats change (in this case, the baseline is 19 targets)
-The last section is stat weights, which might look familiar to anyone who has used Simulationcraft
-This formatting and pre-calculation allows for easy importing to Excel.
-
-Additional functionality includes an inidividual sim run, gear comparisons, and an atonement target count analyzer
-
-An indiivdual sim run, which shows spell casts and a simplified current timer, might look like:
+The top sections is how your healing output changes as your stats change <br />
+The middle section is the optimal number of atonements to apply as stats change (in this case, the baseline is 19 targets) <br />
+The last section is stat weights, which might look familiar to anyone who has used Simulationcraft <br />
+<br />
+An individual sim run, which shows spell casts and a simplified current timer, might look like:
 ```
 0s: PTW
 1.3s: Bubble
