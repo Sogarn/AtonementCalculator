@@ -15,13 +15,11 @@ namespace AtonementCalculator
         public float Timer;
         public float Intellect { get; set; }
         public float BaseInt { get; set; }
-        public float Health { get; set; }
-        public float BaseHealth { get; set; }
         public float CritChance { get; set; }
         public float Haste { get; set; }
         public float Mastery { get; set; }
         public float Versatility { get; set; }
-        public int UseTrinket { get; set; }
+        public float UseTrinket { get; set; }
         public float ManaSpent;
         public float SpiritShellCap;
         public float SpiritShellDuration;
@@ -29,51 +27,60 @@ namespace AtonementCalculator
         public float SchismDuration;
         public float TimeUntilNextDotTick;
         public float TimeUntilNextMindbenderAuto;
+        public float MindbenderAutoSwing;
         public float MindbenderDuration;
         public float DotDuration;
+        public float SpiritShellScaling = 0.8f;
         public float SchismMultiplier = 1.25f;
-        public float SpiritShellMultiplier = 1.07f;
+        // Conduits & misc
+        public float SpiritShellBonusMultiplier = 1.07f;
+        public float MindGamesMultiplier = 1.182f;
+        public float RabidMultiplier = 1.266f;
+        public float PowerInfusionHaste = 25f;
+        // Other
+        public bool SpiritShellConduitEnabled = true;
+        public bool MindGamesConduitEnabled = false;
+        public bool RabidConduitEnabled = true;
+        public bool PowerInfusionEnabled = false;
         public float SinsOfTheManyMultiplier;
         public List<AtonementTarget> Atonements;
         public Dictionary<string, Spell> Grimoire;
 
-        // Initialize actor (without seed)
-        public Priest(float intellect, float health, float critChance, float haste, float mastery, float versatility, int useTrinket = 181, int seed = -1, bool output = false)
+        // Initialize actor
+        public Priest(float intellect, float critChance, float haste, float mastery, float versatility, int useTrinket = 181, int seed = -1, bool output = false)
         {
             // Use seed if applicable
             Seed = seed;
             RNG = (Seed > -1 ? new Random(Seed) : new Random());
 
             // Stat sanity check
-            CritChance = (critChance >= 5 ? critChance : 5);
-            Haste = (haste >= 0 ? haste : 0);
-            Mastery = (mastery >= 11.2f ? mastery : 11.2f);
-            Versatility = (versatility >= 0 ? versatility : 0);
+            critChance = (critChance >= 5 ? critChance : 5);
+            haste = (haste >= 0 ? haste : 0);
+            mastery = (mastery >= 11.2f ? mastery : 11.2f);
+            versatility = (versatility >= 0 ? versatility : 0);
 
             Output = output;
             Timer = 0;
-            // Flask + food
-            BaseInt = intellect + 88;
+            // Flask + food + baseline cloth-wearing int bonus
+            BaseInt = intellect + (88f * 1.05f);
             // Arcane intellect
             Intellect = BaseInt * 1.05f;
-            // Armor kit
-            BaseHealth = health + (32 * 39);
-            // Power Word: Fortitude
-            Health = BaseHealth * 1.05f;
-
             ManaSpent = 0;
-            // Convert stats to multipliers / percentages
             CritChance = critChance / 100f;
-            Haste = haste / 100f + 1;
+            // Check for PI
+            Haste = (haste + (PowerInfusionEnabled ? PowerInfusionHaste : 0)) / 100f + 1;
             Mastery = mastery / 100f + 1;
             Versatility = versatility / 100f + 1;
-            UseTrinket = useTrinket;
+            // Include arcane intellect and cloth int bonus
+            UseTrinket = useTrinket * 1.05f * 1.05f;
             TimeUntilNextDotTick = 0;
             TimeUntilNextMindbenderAuto = 0;
+            MindbenderAutoSwing = 1.5f / Haste / (RabidConduitEnabled ? RabidMultiplier : 1);
             DotDuration = 0; // 20 seconds base
             MindbenderDuration = 0; // 12 seconds base
             SchismDuration = 0;
-            SpiritShellCap = 0.6f * health;
+            // Cap assumes on-use pvp trinket
+            SpiritShellCap = 11f * (Intellect + UseTrinket);
             SpiritShellDuration = 11f;
             SpiritShellStarted = false;
             Atonements = new List<AtonementTarget>();
@@ -134,7 +141,8 @@ namespace AtonementCalculator
             Grimoire.Add("Penance", new Spell(0.4f, (2f / 3f) / Haste, 800f / 3f, 1, true));
             Grimoire.Add("MindBlast", new Spell(0.9792f, 1.5f / Haste, 1250, 1, true));
             Grimoire.Add("Schism", new Spell(1.5f, 1.5f / Haste, 250, 1, true));
-            Grimoire.Add("MindGames", new Spell(3f, 1.5f / Haste, 1000, 1, true));
+            // Possible mindgames multiplier from conduit
+            Grimoire.Add("MindGames", new Spell(3f * (MindGamesConduitEnabled ? MindGamesMultiplier : 1f), 1.5f / Haste, 1000, 1, true));
             Grimoire.Add("PTW", new Spell(0.223f, 1.5f / Haste, 900, 1, true));
             Grimoire.Add("PTW Tick", new Spell(0.124f, 0, 0, 1, true));
             Grimoire.Add("MindbenderAuto", new Spell(1.5f * 1.97f / 6f, 0, 0, 1, true));
@@ -234,7 +242,7 @@ namespace AtonementCalculator
                 Console.WriteLine(Math.Round(Timer, 1) + "s: OneButtonMacro");
             }
             MindbenderDuration = 12f;
-            TimeUntilNextMindbenderAuto = 1.5f / Haste;
+            TimeUntilNextMindbenderAuto = MindbenderAutoSwing;
             SpiritShellStarted = true;
             foreach (AtonementTarget target in Atonements)
             {
@@ -296,7 +304,7 @@ namespace AtonementCalculator
             float baseOutput = spell.Coefficient * Intellect * Versatility;
 
             // Set up final healing for damage abilities (healing is half of damage)
-            float baseDamageHealing = baseOutput * 0.5f * SinsOfTheManyMultiplier * SpiritShellMultiplier * Mastery;
+            float baseDamageHealing = baseOutput * 0.5f * SinsOfTheManyMultiplier * (SpiritShellConduitEnabled ? SpiritShellBonusMultiplier : 1f) * Mastery;
             if (SchismDuration > 0)
             {
                 baseDamageHealing *= SchismMultiplier;
@@ -314,7 +322,7 @@ namespace AtonementCalculator
                         // Target needs an active atonement
                         if (SpiritShellStarted && target.DurationRemaining > 0)
                         {
-                            finalHealing = TestCrit(baseDamageHealing);
+                            finalHealing = TestCrit(baseDamageHealing) * SpiritShellScaling;
                             target.TakeHealing(finalHealing);
                             castHealing += finalHealing;
                         }
@@ -344,7 +352,6 @@ namespace AtonementCalculator
                 time += 0.03f;
             }
 
-            // Calculate DoT and Mindbender ticks
             while (DotDuration > 0 && TimeUntilNextDotTick < 0)
             {
                 TimeUntilNextDotTick += 2f / Haste;
@@ -352,18 +359,16 @@ namespace AtonementCalculator
             }
             while (MindbenderDuration > 0 && TimeUntilNextMindbenderAuto < 0)
             {
-                TimeUntilNextMindbenderAuto += 1.5f / Haste;
+                TimeUntilNextMindbenderAuto += MindbenderAutoSwing;
                 MindbenderAuto();
             }
 
             Timer += time;
-            // Iterate through atonement targets to update remaining time
             foreach (AtonementTarget target in Atonements)
             {
                 target.DurationRemaining -= (time);
             }
 
-            // Update remaining times
             DotDuration -= time;
             TimeUntilNextDotTick -= time;
             MindbenderDuration -= time;

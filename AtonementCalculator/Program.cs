@@ -5,58 +5,53 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// For patch 9.0.5
+// Changes: Spirit shell @ 80% effectiveness, cap now based on Spell Power
 namespace AtonementCalculator
 {
     class Program
     {
         static void Main(string[] args)
         {
-            bool output = false;
-
             /* Atonement sim = 1
              * Statweight sim = 2
              * Gearcompare sim = 3
              * Individual sim = 4*/
 
-            int mode = 2;
+            int mode = 4;
 
-            int iterations = 200;
+            int iterations = 250;
 
-            int statVariance = 250;
+            int statVariance = 200;
             int statStep = 50;
 
-            // Minimum number of power word: shields to cast for ramp
-            int bubbleAtonements = 4;
+            int bubbleAtonements = 6;
 
             string filePath = @"C:\Temp\AtonementOutput.csv";
             string weightsFilePath = @"C:\Temp\AtonementStatWeights.csv";
 
-            // Sim automatically adds flask, int food and armor kit
-            float intellect = 1467;
-            float health = 35600;
-            float crit = 23.77f;
-            float haste = 19.21f;
-            float mastery = 26.85f;
-            float vers = 4.8f;
+            float intellect = 1543;
+            float crit = 15.97f;
+            float haste = 25.03f;
+            float mastery = 28.4f;
+            float vers = 7.32f;
             int trinket = 181;
 
             //For gear compare
             float netInt = 0;
-            float netStam = 0;
             float netCrit = 0;
             float netHaste = 0;
             float netMastery = 0;
             float netVers = 0;
             int netTrinket = 0;
 
-            // Multipliers stat to % or actual value
-            float stamMod = 39;
+            // Multipliers, stat to % / actual value
             float critMod = 35;
             float hasteMod = 33;
-            float masteryMod = 35 * 1.35f;
+            float masteryMod = 35 / 1.35f;
             float versMod = 40;
 
-            // Generate seed for RNG so every iteration has the same "fights"
+            // Generate seed for RNG so every copy has the same "fights"
             Random generator = new Random();
             int[] seed = new int[iterations];
             for (int i = 0; i < iterations; i++)
@@ -65,8 +60,8 @@ namespace AtonementCalculator
             }
             generator = null;
 
-            // Int, Health, Crit, Haste, Mastery, Vers
-            Priest MyStats = new Priest(intellect, health, crit, haste, mastery, vers, trinket, seed[0], output);
+            // Int, stamina, Crit, Haste, Mastery, Vers
+            Priest MyStats = new Priest(intellect, crit, haste, mastery, vers, trinket, seed[0]);
 
             // Run numbers for healing vs atonements
             if (mode == 1)
@@ -97,7 +92,7 @@ namespace AtonementCalculator
                             // Average out the runs
                             for (int k = 0; k < iterations; k++)
                             {
-                                Reldarus = new Priest(intellect, health, crit, j, mastery, vers, trinket, seed[k]);
+                                Reldarus = new Priest(intellect, crit, j, mastery, vers, trinket, seed[k]);
                                 // Calculate total healing done
                                 totalHealing += RunSim(Reldarus, i).ActualHealing();
                             }
@@ -115,6 +110,9 @@ namespace AtonementCalculator
             // Run numbers for stat weights
             if (mode == 2)
             {
+                // To store baseline atonements
+                int[] atonementArray = new int[iterations];
+
                 if (File.Exists(weightsFilePath))
                 {
                     File.Delete(weightsFilePath);
@@ -127,22 +125,21 @@ namespace AtonementCalculator
 
                     for (int i = 0; i < iterations; i++)
                     {
-                        // Create new actor
-                        Reldarus = new Priest(intellect, health, crit, haste, mastery, vers, trinket, seed[i]);
-                        // Calculate optimal atonement count for this actor
-                        tempAtonements = OptimalAtonementCount(intellect, health, crit, haste, mastery, vers,
+                        Reldarus = new Priest(intellect, crit, haste, mastery, vers, trinket, seed[i]);
+                        tempAtonements = OptimalAtonementCount(intellect, crit, haste, mastery, vers,
                             trinket, seed[i], bubbleAtonements);
-                        // Run sim
+                        atonementArray[i] = tempAtonements;
                         baselineOutput[i] = RunSim(Reldarus, tempAtonements).ActualHealing();
                     }
+
+                    // Update minimum atonements as a bound
+                    bubbleAtonements = atonementArray.Min();
 
                     // Hold data for later
                     float[] yArray = new float[(2 * statVariance / statStep) + 1];
                     float[] xArray = new float[yArray.Length];
                     float[] intArray = new float[yArray.Length];
                     float[] intArrayAtonements = new float[yArray.Length];
-                    float[] stamArray = new float[yArray.Length];
-                    float[] stamArrayAtonements = new float[yArray.Length];
                     float[] critArray = new float[yArray.Length];
                     float[] critArrayAtonements = new float[yArray.Length];
                     float[] hasteArray = new float[yArray.Length];
@@ -171,40 +168,16 @@ namespace AtonementCalculator
                         atonementResult = 0;
                         for (int k = 0; k < iterations; k++)
                         {
-                            // Create actor
-                            Reldarus = new Priest(intellect + i, health, crit, haste, mastery, vers, trinket, seed[k]);
-                            // Calculate optimal atomenets
-                            tempAtonements = OptimalAtonementCount(intellect + i, health, crit, haste, mastery, vers,
+                            Reldarus = new Priest(intellect + i, crit, haste, mastery, vers, trinket, seed[k]);
+                            tempAtonements = OptimalAtonementCount(intellect + i, crit, haste, mastery, vers,
                                 trinket, seed[k], bubbleAtonements);
                             // Save the difference between the run and the baseline
                             tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
                             atonementResult += Reldarus.Atonements.Count();
                         }
-                        // Store result in array
                         result = (float)Math.Round((tempOutput / iterations));
                         intArray[count] = result;
                         intArrayAtonements[count] = (float)Math.Round(atonementResult / iterations);
-                        count += 1;
-                    }
-
-                    count = 0;
-                    Console.WriteLine("Starting Health");
-                    // Health
-                    for (int i = -statVariance; i < statVariance + 1; i += statStep)
-                    {
-                        tempOutput = 0;
-                        atonementResult = 0;
-                        for (int k = 0; k < iterations; k++)
-                        {
-                            Reldarus = new Priest(intellect, health + (i * stamMod), crit, haste, mastery, vers, trinket, seed[k]);
-                            tempAtonements = OptimalAtonementCount(intellect, health + (i * stamMod), crit, haste, mastery, vers,
-                                trinket, seed[k], bubbleAtonements);
-                            tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
-                            atonementResult += Reldarus.Atonements.Count();
-                        }
-                        result = (float)Math.Round((tempOutput / iterations));
-                        stamArray[count] = result;
-                        stamArrayAtonements[count] = (float)Math.Round(atonementResult / iterations);
                         count += 1;
                     }
 
@@ -217,8 +190,8 @@ namespace AtonementCalculator
                         atonementResult = 0;
                         for (int k = 0; k < iterations; k++)
                         {
-                            Reldarus = new Priest(intellect, health, crit + (i / critMod), haste, mastery, vers, trinket, seed[k]);
-                            tempAtonements = OptimalAtonementCount(intellect, health, crit + (i / critMod), haste, mastery, vers,
+                            Reldarus = new Priest(intellect, crit + (i / critMod), haste, mastery, vers, trinket, seed[k]);
+                            tempAtonements = OptimalAtonementCount(intellect, crit + (i / critMod), haste, mastery, vers,
                                 trinket, seed[k], bubbleAtonements);
                             tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
                             atonementResult += Reldarus.Atonements.Count();
@@ -238,8 +211,8 @@ namespace AtonementCalculator
                         atonementResult = 0;
                         for (int k = 0; k < iterations; k++)
                         {
-                            Reldarus = new Priest(intellect, health, crit, haste + (i / hasteMod), mastery, vers, trinket, seed[k]);
-                            tempAtonements = OptimalAtonementCount(intellect, health, crit, haste + (i / hasteMod), mastery, vers,
+                            Reldarus = new Priest(intellect, crit, haste + (i / hasteMod), mastery, vers, trinket, seed[k]);
+                            tempAtonements = OptimalAtonementCount(intellect, crit, haste + (i / hasteMod), mastery, vers,
                                 trinket, seed[k], bubbleAtonements);
                             tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
                             atonementResult += Reldarus.Atonements.Count();
@@ -259,8 +232,8 @@ namespace AtonementCalculator
                         atonementResult = 0;
                         for (int k = 0; k < iterations; k++)
                         {
-                            Reldarus = new Priest(intellect, health, crit, haste, mastery + (i / masteryMod), vers, trinket, seed[k]);
-                            tempAtonements = OptimalAtonementCount(intellect, health, crit, haste, mastery + (i / masteryMod), vers,
+                            Reldarus = new Priest(intellect, crit, haste, mastery + (i / masteryMod), vers, trinket, seed[k]);
+                            tempAtonements = OptimalAtonementCount(intellect, crit, haste, mastery + (i / masteryMod), vers,
                                 trinket, seed[k], bubbleAtonements);
                             tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
                             atonementResult += Reldarus.Atonements.Count();
@@ -280,8 +253,8 @@ namespace AtonementCalculator
                         atonementResult = 0;
                         for (int k = 0; k < iterations; k++)
                         {
-                            Reldarus = new Priest(intellect, health, crit, haste, mastery, vers + (i / versMod), trinket, seed[k]);
-                            tempAtonements = OptimalAtonementCount(intellect, health, crit, haste, mastery, vers + (i / versMod),
+                            Reldarus = new Priest(intellect, crit, haste, mastery, vers + (i / versMod), trinket, seed[k]);
+                            tempAtonements = OptimalAtonementCount(intellect, crit, haste, mastery, vers + (i / versMod),
                                 trinket, seed[k], bubbleAtonements);
                             tempOutput += (RunSim(Reldarus, tempAtonements).ActualHealing() - baselineOutput[k]);
                             atonementResult += Reldarus.Atonements.Count();
@@ -294,19 +267,19 @@ namespace AtonementCalculator
 
                     // Main output
                     //Console.WriteLine("Output,Int,Stam,Crit,Haste,Mastery,Vers");
-                    sw.WriteLine("Output,Int,Stam,Crit,Haste,Mastery,Vers");
+                    sw.WriteLine("Output,Int,Crit,Haste,Mastery,Vers");
                     for (int i = 0; i < xArray.Length; i++)
                     {
-                        sw.WriteLine("{0},{1},{2},{3},{4},{5},{6}", xArray[i],
-                            intArray[i], stamArray[i], critArray[i], hasteArray[i], mastArray[i], versArray[i]);
+                        sw.WriteLine("{0},{1},{2},{3},{4},{5}", xArray[i],
+                            intArray[i], critArray[i], hasteArray[i], mastArray[i], versArray[i]);
                     }
                     sw.WriteLine();
                     // Atonements
-                    sw.WriteLine("Atonements,Int,Stam,Crit,Haste,Mastery,Vers");
+                    sw.WriteLine("Atonements,Int,Crit,Haste,Mastery,Vers");
                     for (int i = 0; i < xArray.Length; i++)
                     {
-                        sw.WriteLine("{0},{1},{2},{3},{4},{5},{6}", xArray[i],
-                            intArrayAtonements[i], stamArrayAtonements[i], critArrayAtonements[i],
+                        sw.WriteLine("{0},{1},{2},{3},{4},{5}", xArray[i],
+                            intArrayAtonements[i], critArrayAtonements[i],
                             hasteArrayAtonements[i], mastArrayAtonements[i], versArrayAtonements[i]);
                     }
                     sw.WriteLine();
@@ -314,30 +287,30 @@ namespace AtonementCalculator
                     StringBuilder sb = new StringBuilder();
                     sb.Append("Weights,");
                     float intWeight = SolveStatWeight(xArray, intArray);
-                    float stamWeight = SolveStatWeight(xArray, stamArray);
                     float critWeight = SolveStatWeight(xArray, critArray);
                     float hasteWeight = SolveStatWeight(xArray, hasteArray);
                     float mastWeight = SolveStatWeight(xArray, mastArray);
                     float versWeight = SolveStatWeight(xArray, versArray);
 
                     sb.Append(intWeight + ",");
-                    sb.Append(stamWeight + ",");
                     sb.Append(critWeight + ",");
                     sb.Append(hasteWeight + ",");
                     sb.Append(mastWeight + ",");
                     sb.Append(versWeight + ",");
                     sw.WriteLine(sb);
+                    Console.WriteLine(sb);
                     // Normalized stat weights
                     sb = new StringBuilder();
                     sb.Append("Normalized,");
                     sb.Append(Math.Round(intWeight / intWeight, 2) + ",");
-                    sb.Append(Math.Round(stamWeight / intWeight, 2) + ",");
                     sb.Append(Math.Round(critWeight / intWeight, 2) + ",");
                     sb.Append(Math.Round(hasteWeight / intWeight, 2) + ",");
                     sb.Append(Math.Round(mastWeight / intWeight, 2) + ",");
                     sb.Append(Math.Round(versWeight / intWeight, 2) + ",");
                     sw.WriteLine(sb);
+                    Console.WriteLine(sb);
                 }
+                Console.ReadLine();
             }
 
             // Run a gear compare
@@ -345,7 +318,6 @@ namespace AtonementCalculator
             {
                 // We already have the base gear so lets make a copy to compare
                 float tempInt = intellect + netInt;
-                float tempHealth = health + (netStam * stamMod);
                 float tempCrit = crit + (netCrit / critMod);
                 float tempHaste = haste + (netHaste / hasteMod);
                 float tempMastery = mastery + (netMastery / masteryMod);
@@ -363,13 +335,13 @@ namespace AtonementCalculator
                 for (int i = 0; i < iterations; i++)
                 {
                     // Old
-                    MyStats = new Priest(intellect, health, crit, haste, mastery, vers, trinket, seed[i]);
-                    oldBubbles = OptimalAtonementCount(intellect, health, crit, haste, mastery, vers, trinket, seed[i], bubbleAtonements);
+                    MyStats = new Priest(intellect, crit, haste, mastery, vers, trinket, seed[i]);
+                    oldBubbles = OptimalAtonementCount(intellect, crit, haste, mastery, vers, trinket, seed[i], bubbleAtonements);
                     oldGearOutput += RunSim(MyStats, oldBubbles).ActualHealing();
 
                     // New
-                    NewStats = new Priest(tempInt, tempHealth, tempCrit, tempHaste, tempMastery, tempVers, tempTrinket, seed[i]);
-                    newBubbles = OptimalAtonementCount(tempInt, tempHealth, tempCrit, tempHaste, tempMastery, tempVers, tempTrinket, seed[i], bubbleAtonements);
+                    NewStats = new Priest(tempInt, tempCrit, tempHaste, tempMastery, tempVers, tempTrinket, seed[i]);
+                    newBubbles = OptimalAtonementCount(tempInt, tempCrit, tempHaste, tempMastery, tempVers, tempTrinket, seed[i], bubbleAtonements);
                     newGearOutput += RunSim(NewStats, newBubbles).ActualHealing();
                 }
 
@@ -381,7 +353,8 @@ namespace AtonementCalculator
             // Run a lone sim
             if (mode == 4)
             {
-                bubbleAtonements = OptimalAtonementCount(intellect, health, crit, haste, mastery, vers,
+                MyStats.Output = true;
+                bubbleAtonements = OptimalAtonementCount(intellect, crit, haste, mastery, vers,
                     trinket, seed[0], bubbleAtonements);
                 RunSim(MyStats, bubbleAtonements);
             }
@@ -443,34 +416,31 @@ namespace AtonementCalculator
         }
 
         // Calculate optimal atonements for one seed
-        public static int OptimalAtonementCount(float intellect, float health, float critChance,
+        public static int OptimalAtonementCount(float intellect, float critChance,
             float haste, float mastery, float versatility, int useTrinket, int seed, int bubbleAtonements)
         {
-            // Needs to be a gain of at least 2.5% higher
-            float percentToBeat = 1.025f;
+            // Needs to be a gain of at least 1.5% higher
+            float percentToBeat = 1.015f;
 
-            float currentResult = 1;
-            float nextResult = 1;
-            float percentChange = 2;
+            float currentResult = RunSim(
+                    new Priest(intellect, critChance, haste, mastery, versatility, useTrinket, seed), bubbleAtonements).ActualHealing();
+            float nextResult = RunSim(
+                    new Priest(intellect, critChance, haste, mastery, versatility, useTrinket, seed), bubbleAtonements + 1).ActualHealing();
+            float percentChange = nextResult / currentResult;
 
             while (percentChange > percentToBeat)
             {
+                bubbleAtonements += 1;
                 currentResult = nextResult;
+
                 nextResult = RunSim(
-                    new Priest(intellect, health, critChance, haste, mastery, versatility, useTrinket, seed), bubbleAtonements).ActualHealing();
+                    new Priest(intellect, critChance, haste, mastery, versatility, useTrinket, seed), bubbleAtonements + 1).ActualHealing();
 
                 // Calculate change and remove an atonement if we have lost value
                 percentChange = nextResult / currentResult;
-                if (percentChange > percentToBeat)
+                if (percentChange < percentToBeat)
                 {
-                    bubbleAtonements += 1;
-                }
-                else
-                {
-                    if (percentChange < 1)
-                    {
-                        bubbleAtonements -= 1;
-                    }
+                    bubbleAtonements -= 1;
                 }
             }
             return bubbleAtonements;
